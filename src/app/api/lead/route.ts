@@ -3,11 +3,12 @@
  *
  * Ответственность эндпоинта:
  *  1. принять и провалидировать JSON;
- *  2. проверить белорусский телефон ({@link validateBelarusPhone});
- *  3. собрать UTM-метки (из тела и/или query-строки);
- *  4. определить IP клиента (с учётом прокси Vercel/Netlify);
- *  5. сохранить с дедупликацией ({@link saveLead});
- *  6. вернуть типизированный ответ ({@link LeadApiResponse}).
+ *  2. отсеять ботов через honeypot-поле `company` (см. ниже);
+ *  3. проверить белорусский телефон ({@link validateBelarusPhone});
+ *  4. собрать UTM-метки (из тела и/или query-строки);
+ *  5. определить IP клиента (с учётом прокси Vercel/Netlify);
+ *  6. сохранить с дедупликацией ({@link saveLead});
+ *  7. вернуть типизированный ответ ({@link LeadApiResponse}).
  *
  * Примечание (Next.js 16): при включённом `cacheComponents` segment-конфиги
  * `runtime`/`dynamic` в route-хендлерах запрещены. Рантайм `nodejs` — дефолт,
@@ -95,6 +96,21 @@ export async function POST(
   }
 
   const body = rawBody as Record<string, unknown>;
+
+  // --- Honeypot: ловушка для ботов ---
+  // Скрытое поле `company` не должно быть заполнено живым пользователем.
+  // Если оно непустое — это бот: возвращаем «успех», но НЕ сохраняем заявку,
+  // чтобы бот не понял, что пойман, и не пытался обойти проверку.
+  const honeypot =
+    typeof body.company === "string" ? body.company.trim() : "";
+  if (honeypot !== "") {
+    return NextResponse.json({
+      ok: true,
+      id: "blocked",
+      deduplicated: false,
+    });
+  }
+
   const fieldErrors: Partial<Record<keyof LeadFormInput, string>> = {};
 
   // --- 2. Валидация имени ---

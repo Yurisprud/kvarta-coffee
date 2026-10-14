@@ -40,6 +40,8 @@ export function LeadForm() {
   const [comment, setComment] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<Status>("idle");
+  // Honeypot-поле: люди его не видят и не заполняют, а боты — да.
+  const [honeypot, setHoneypot] = useState("");
 
   // UTM-метки для атрибуции заявки.
   const { utm } = useUtm();
@@ -74,13 +76,15 @@ export function LeadForm() {
     setStatus("submitting");
 
     // Формируем payload по контракту LeadFormInput (+ UTM из хука).
-    const payload: LeadFormInput = {
+    // Поле `company` — honeypot для серверной анти-бот проверки (см. route.ts).
+    const payload = {
       name: name.trim(),
       phone,
       interest,
       ...(comment.trim() ? { comment: comment.trim() } : {}),
       ...utm,
-    };
+      company: honeypot,
+    } satisfies LeadFormInput & { company: string };
 
     try {
       const res = await fetch("/api/lead", {
@@ -228,6 +232,22 @@ export function LeadForm() {
               onSubmit={handleSubmit}
               className="rounded-card border border-hairline bg-paper p-6 sm:p-8"
             >
+              {/* Honeypot: скрытое поле-«ловушка» для ботов. Реальные
+                  пользователи его не видят (off-screen, aria-hidden,
+                  не в таб-порядке). Если окажется заполнено — это бот. */}
+              <div aria-hidden="true" className="absolute h-0 w-0 overflow-hidden opacity-0">
+                <label htmlFor="lead-company">Компания</label>
+                <input
+                  id="lead-company"
+                  name="company"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                />
+              </div>
+
               {/* Общая ошибка отправки (не валидация полей) */}
               {status === "error" &&
                 Object.keys(errors).length === 0 && (
