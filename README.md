@@ -1,36 +1,206 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ☕ Кварта — мастерская свежей обжарки кофе (Минск)
 
-## Getting Started
+Лендинг небольшой кофейной мастерской «Кварта» (основатели — бывшие бариста Аня и Дмитрий). Проект делает ставку на **свежесть**: кофе попадает к клиенту на 1–3 день после обжарки малыми партиями по 5 кг.
 
-First, run the development server:
+> Весь проект создан в режиме **AI-assisted разработки**: архитектура, код, SEO и документация написаны совместно разработчиком и AI-ассистентом. Подробный отчёт о совместной работе — в разделе [AI-Assisted отчёт](#-ai-assisted-отчёт-как-мы-работали-с-ai).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 🧰 Стек технологий
+
+| Технология | Версия | Роль |
+|------------|--------|------|
+| **Next.js** | 16.4.0 (App Router) | Фреймворк, SSR/SSG, Route Handlers |
+| **React** | 19.3.0 | UI-библиотека |
+| **Tailwind CSS** | v4 | Стилизация (дизайн-токены через `@theme`) |
+| **TypeScript** | ^5 | Статическая типизация, строгий режим |
+| **ESLint** | ^9 (flat-config) | Линтинг (`eslint-config-next`) |
+
+Особенности стека: **Next.js 16** с включёнными `cacheComponents` и Turbopack. Проект собирается без ошибок и предупреждений (`next build`, `tsc --noEmit`, `eslint` — все зелёные).
+
+---
+
+## 📁 Структура проекта
+
+```
+src/
+├── app/
+│   ├── api/lead/route.ts     # POST-эндпоинт приёма заявок
+│   ├── globals.css           # Tailwind v4 + дизайн-токены (@theme)
+│   ├── layout.tsx            # Корневой layout + Metadata API (SEO/OG)
+│   └── page.tsx              # Главная страница (+ JSON-LD)
+├── components/
+│   ├── JsonLd.tsx            # Schema.org LocalBusiness + CafeOrCoffeeShop
+│   ├── sections/             # Смысловые блоки лендинга
+│   │   ├── Header.tsx  Hero.tsx  FreshnessTimeline.tsx
+│   │   ├── Catalog.tsx  Subscription.tsx  Delivery.tsx
+│   │   └── LeadForm.tsx  Footer.tsx
+│   └── ui/                   # Переиспользуемые примитивы
+│       ├── Section.tsx  SectionHeading.tsx  Button.tsx  Container.tsx
+├── hooks/
+│   └── useUtm.ts             # Сбор UTM-меток → sessionStorage
+├── lib/
+│   ├── content.ts            # Контент: каталог, навигация, контакты
+│   └── db/
+│       ├── index.ts          # Файловое хранилище + async-mutex + дедуп
+│       └── leads.json        # Данные заявок (в .gitignore)
+├── types/
+│   └── lead.ts               # Контракт данных: форма ↔ API ↔ БД
+└── utils/
+    ├── phone.ts              # Валидация белорусских номеров
+    └── cn.ts                 # Условное объединение CSS-классов
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🏗️ Архитектура и ключевые фичи
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Бэкенд и дедупликация заявок
 
-## Learn More
+Эндпоинт `POST /api/lead` (`src/app/api/lead/route.ts`) принимает заявку, валидирует её, собирает аналитику и сохраняет через изолированный модуль `src/lib/db/index.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+**Защита от дублей (10 минут).** Ключ дедупликации — **канонический телефон в формате E.164** (`375XXXXXXXXX`, без `+`). Ещё до сохранения `validateBelarusPhone` приводит любой ввод (`8 (029) …`, `+375 29 …`, `8029…`) к единому виду, поэтому формат не влияет на распознавание повтора. Внутри `saveLead` берём `now = Date.now()` и ищем запись с тем же номером, созданную менее `10 * 60 * 1000` мс назад. Дубль **не создаётся** — API возвращает `{ ok: true, id, deduplicated: true }` с id первой заявки.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Защита от гонок условий (race conditions).** Node.js однопоточен, но `fs.promises` асинхронен, поэтому параллельные «прочитал → изменил → записал» могут потерять данные. Решение — **in-memory async-mutex** (`withLock`, цепочка промисов): операции чтения-изменения-записи выполняются строго последовательно. Запись **атомарна**: данные пишутся во временный файл и переименовываются (`rename`), поэтому читатель никогда не увидит «полузаписанный» JSON.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Маркетинг и аналитика
 
-## Deploy on Vercel
+- **IP-адрес** определяется с учётом reverse-proxy (Vercel/Netlify/Cloudflare): заголовок `x-forwarded-for` (берём первый из цепочки) с фолбэком на `x-real-ip`.
+- **UTM-метки** (`utm_source/medium/campaign/content/term`) собираются двумя путями: из query-строки и из тела запроса (тело приоритетнее). Хук **`useUtm`** (`src/hooks/useUtm.ts`) считывает метки из URL, надёжно хранит их в **`sessionStorage`** (переживают навигацию в рамках вкладки) и передаёт вместе с формой — даже если посетитель пришёл по рекламе, а форму заполнил позже.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Дизайн-система
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Визуальный стиль — «тёплое крафт-ателье»: землистая палитра (крафт `#f6efe3`, эспрессо `#2b211a`, терракота `#b1532b`), тонкие `hairline`-разделители, крупная антиква **Lora** для заголовков и чистый **Golos Text** для текста (оба с кириллицей). Осознанно избегаем шаблонных клише ИИ: без гигантских градиентных кнопок, неона и «банальных карточек» с тенями — вместо этого открытая сетка-прайс-лист и асимметричная сетка.
+
+Центральный элемент — **кастомный примитив `<Section>`** (`src/components/ui/Section.tsx`) с пропсами `tone` (`cream | paper | espresso`), `border` (`top | bottom | none`) и `spacing` (`default | hero | none`). Он заменяет дублирование хардкод-классов (`scroll-mt-24 py-16 …`) во всех секциях и служит единым источником правды для фона, отступов и разделителей. Семантические `<header>`/`<footer>` намеренно остаются отдельными тегами.
+
+### SEO и безопасность
+
+- **Metadata API** (`src/app/layout.tsx`): `title` с шаблоном, `description`, `keywords`, `robots` (index/follow + `max-image-preview`), `alternates.canonical`, полноценный **OpenGraph** (`og:title/description/type/locale/siteName/url/image`) и **Twitter card** (`summary_large_image`).
+- **JSON-LD** (`src/components/JsonLd.tsx`): структурированные данные Schema.org типа **`LocalBusiness` + `CafeOrCoffeeShop`** — адрес (Минск, ул. Короля, 9), часы (Пт–Сб 11:00–18:00), гео, обжарка по четвергам и офферы (кофе 26–32 BYN / 250 г, подписка 54 BYN/мес). Вывод санитизируется от XSS (`replace(/</g, "\u003c")` по документации Next).
+- **Антиспам Honeypot**: в форме скрытое поле `company` (off-screen, `aria-hidden`, `tabIndex={-1}`) невидимо для людей, но приманивает ботов. Сервер проверяет: если `company` заполнено — возвращает **фейковый успех** `200 { ok: true, id: "blocked" }`, но **не пишет** в базу. Бот уверен, что «спам прошёл», и не пытается обойти проверку.
+
+---
+
+## 🤖 AI-Assisted отчёт (как мы работали с AI)
+
+Проект развивался в диалоге «разработчик + AI-ассистент». Ниже — три ключевых инсайта, где совместная аналитическая работа напрямую повлияла на качество и стабильность кода.
+
+### 1. Анализ кодовой базы Next.js 16 в `node_modules` против breaking changes
+
+`create-next-app` сгенерировал предупреждение в `AGENTS.md`: это **Next.js 16 с ломающими изменениями**, и перед написанием кода нужно читать актуальные доки в `node_modules/next/dist/docs/`. Вместо того чтобы опираться на устаревшие знания, мы **вскрыли и изучили реальную документацию внутри `node_modules`** — и это спасло проект несколько раз:
+
+- **Route Handlers:** выяснили, что при включённом `cacheComponents` segment-конфиги `export const runtime` и `export const dynamic` в route-хендлерах **запрещены**. Первая версия `route.ts` падала на билде. Убрали их — рантайм `nodejs` дефолтен, а POST и так не кэшируется (подтверждено таблицей роутов: `ƒ /api/lead Dynamic`).
+- **JSON-LD:** взяли рекомендованный Next паттерн `<script type="application/ld+json">` с XSS-санитизацией, а не самодельное решение.
+- **Metadata API:** сверили корректные поля (`openGraph`, `twitter`, `robots`, `alternates`) по актуальной спеке v16.
+
+**Вывод:** при работе со свежим мажором фреймворка доверяй не памяти, а доке, лежащей рядом в `node_modules`.
+
+### 2. Критическая ошибка гидратации: `new Date()` в футере
+
+В футере изначально стоял копирайт с текущим годом: `© {new Date().getFullYear()}`. Локально всё выглядело fine, но на **`next build`** проект упал с ошибкой:
+
+> `Next.js encountered the unstable value new Date() while prerendering.`
+
+**Причина.** При включённом `cacheComponents` (Next 16) `new Date()` во время пререндера считается **нестабильным значением** — оно различается между сервером и клиентом (и между сборками), что ломает статический пререндер и угрожает hydration-мисматчем. Мы **вовремя поймали** это на этапе сборки, проанализировали стек и заменили динамический вызов на **статичную константу** `COPYRIGHT_YEAR = 2026` с комментарием-предупреждением для будущих разработчиков. Билд стал зелёным.
+
+**Вывод:** недетерминированные значения (дата, `Math.random`, `Date.now`) в серверно-рендерящихся компонентах — классический источник hydration-ошибок. Их нужно выносить в константы/эффекты или оборачивать в клиентские границы.
+
+### 3. Оптимизация хука `useUtm`: от каскадных рендеров к ленивой инициализации
+
+Первая версия `useUtm` читала `sessionStorage`/URL внутри `useEffect` и через `setUtm(...)` писала результат в состояние. ESLint (`react-hooks/set-state-in-effect`) пометил это как **анти-паттерн**: синхронный `setState` в эффекте вызывает **каскадные ре-рендеры** (state → render → effect → setState → render), что вредит производительности.
+
+**Решение.** Мы переписали логику на **SSR-safe ленивую инициализацию состояния**:
+
+```ts
+const [utm] = useState<UtmParams>(() =>
+  typeof window === "undefined" ? {} : resolveInitialUtm(),
+);
+```
+
+- Функция-инициализатор `useState(() => …)` выполняется **один раз** при монтировании — без эффекта и лишних рендеров.
+- Проверка `typeof window === "undefined"` гарантирует **согласованность с SSR** (на сервере — пустой объект, на клиенте — реальные UTM).
+- Побочный эффект (сохранение в `sessionStorage`) остался в чистой функции `resolveInitialUtm`, а не в теле эффекта.
+
+**Вывод:** для одноразового чтения внешнего источника (URL/localStorage) ленивый `useState(() => …)` идиоматичнее и быстрее, чем `useEffect` + `setState`.
+
+---
+
+## ⚖️ Честные компромиссы и рекомендации для Production
+
+Архитектура сознательно сделана максимально простой для деплоя и понятной для проверки, но мы честно фиксируем ограничения.
+
+### Хранилище заявок: JSON-файл vs Serverless
+
+Заявки хранятся в структурированном JSON (`src/lib/db/leads.json`). Это даёт **нулевую настройку** для локальной разработки и self-hosted, но:
+
+> ⚠️ **На Vercel/Netlify Functions запись в файловую систему в проде не работает.** Serverless-окружение монтирует проект **read-only** (исключение — эфемерный `/tmp`, который не persists между вызовами и инстансами). Поэтому в реальном serverless-проде JSON-файл не сохранит заявку.
+
+**Что уже сделано:** путь к хранилищу можно переопределить переменной окружения **`LEADS_DB_PATH`**, базовый путь вынесен в изолированный модуль `src/lib/db/index.ts` с единственной точкой входа `saveLead()`.
+
+**Рекомендация для прода:** поскольку логика изолирована, переключить backend — дело одной реализации модуля. Замените `saveLead` на внешнее хранилище, не трогая API, типы и UI:
+
+| Вариант | Когда подходит |
+|---------|----------------|
+| **Vercel KV / Upstash Redis** | Простейший key-value, TTL для дедупликации из коробки |
+| **Supabase (Postgres)** | Нужна реляционная модель и SQL-аналитика |
+| **Google Sheets** | Заявки должны сразу быть видны нетехническим сотрудникам |
+
+> Важно: in-memory async-mutex защищает от гонок **внутри одного процесса**. В serverless с несколькими параллельными инстансами для соблюдаемости дедупликации «10 минут» надёжнее опираться на атомарную проверку на стороне БД (например, TTL-ключ в Redis), а не на read-modify-write файла.
+
+### Honeypot: границы применимости
+
+Honeypot — эффективная **базовая** защита от простых ботов, заполняющих все поля формы. Но у него есть пределы:
+
+- Продвинутые боты умеют определять скрытые поля (по `position/opacity/размеру`) и пропускать их.
+- Honeypot **не защищает** от целечевых атак и не ограничивает частоту запросов с одного IP.
+
+**Рекомендация для прода** при реальном спаме: добавить rate-limiting по IP (middleware или edge-config), результата «капчи» (hCaptcha/Turnstile) для чувствительных сценариев или WAF на уровне платформы.
+
+### Прочее
+
+- **`og:image`** сейчас — плейсхолдер Unsplash. Для прода создайте собственный `1200×630` в `public/` или используйте файловую конвенцию `opengraph-image.tsx`.
+- **Телефон в JSON-LD** — заглушка `+375 00 000-00-00` (`// TODO` в `src/components/JsonLd.tsx`). Замените на реальный.
+- **Шрифты Google** (`next/font`) требуют интернета на этапе сборки.
+
+---
+
+## 🚀 Инструкция по запуску
+
+Требуется **Node.js 20+** (проект собран и протестирован на Node 24).
+
+```bash
+# 1. Установить зависимости
+npm install
+
+# 2. Запустить dev-сервер (http://localhost:3000)
+npm run dev
+
+# 3. Продакшн-сборка и предпросмотр
+npm run build
+npm run start
+
+# 4. Проверка линтером
+npm run lint
+```
+
+### Переменные окружения
+
+| Переменная | По умолчанию | Назначение |
+|------------|--------------|------------|
+| `LEADS_DB_PATH` | `<cwd>/src/lib/db/leads.json` | Путь к JSON-хранилищу заявок (напр. `/tmp/leads.json` в serverless) |
+
+---
+
+## ✅ Статус качества
+
+| Проверка | Результат |
+|----------|-----------|
+| `next build` | ✅ exit 0, без предупреждений |
+| `tsc --noEmit` | ✅ exit 0 |
+| `eslint src --max-warnings=0` | ✅ exit 0 |
+| Живое e2e-тестирование API | ✅ валидация, дедупликация, UTM, IP, honeypot |
+
+---
+
+© Кварта. Обжариваем с любовью в Минске. ☕
