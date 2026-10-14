@@ -33,33 +33,53 @@ const fieldBase =
 const fieldOk = "border-hairline-strong focus:border-terracotta";
 const fieldErr = "border-terracotta/60 focus:border-terracotta";
 
-/** Максимум символов: с запасом на формат `+375 (29) 111-22-33` (ровно 19). */
+/** Верхняя граница длины для paste (санитайзер режет точнее, см. ниже). */
 const PHONE_MAX_LENGTH = 19;
 
 /**
- * Очищает сырой ввод телефона прямо при наборе.
- * Разрешаем только цифры, пробелы, дефисы и круглые скобки, а знак «+» —
- * исключительно в самом начале (международный формат). Все буквы и прочие
- * спецсимволы отсекаются. Поддерживаются оба популярных в РБ формата:
- * локальный `8029…` и международный `+375…`.
+ * Очищает сырой ввод телефона прямо при наборе и жёстко ограничивает его
+ * под реальные белорусские форматы. Разрешаем только цифры, пробелы,
+ * дефисы и круглые скобки, а знак «+» — исключительно в самом начале.
+ * Все буквы и посторонние спецсимволы отсекаются автоматически.
  *
- * Серверный `validateBelarusPhone` всё равно нормализует строку, поэтому
- * сырой (но очищенный) вид безопасно передаётся в бэкенд.
+ * Лимиты зависят от первого символа (проверяются на каждом вводе):
+ *  - `+375…` (международный): максимум 12 цифр (`+375291112233` = 13 симв.)
+ *    либо до 19 символов с разделителями (`+375 (29) 111-22-33`);
+ *  - `80…`   (локальный):      максимум 11 цифр (`80291112233` = 11 симв.)
+ *    либо до 17 символов с разделителями (`8 (029) 111-22-33`);
+ *  - иначе (национальный/`375…` без `+`): запас — 12 цифр, до 19 символов.
+ *
+ * Таким образом «80298585858585858» обрежется до `80298585858` (11 цифр),
+ * а лишние цифры сверх формата ввести будет нельзя.
  */
 function sanitizePhoneInput(raw: string): string {
   // 1. Оставляем только разрешённые символы.
   let cleaned = raw.replace(/[^\d+ ()-]/g, "");
 
-  // 2. Знак «+» допустим только первым символом (убираем все остальные).
-  cleaned = cleaned.replace(/(?!^)\+/g, "");
-
-  // 3. Ставим единственный ведущий «+» в самое начало, если он был введён.
+  // 2. Знак «+» допустим только первым символом (единственный, в начале).
   const hasLeadingPlus = cleaned.startsWith("+");
   cleaned = cleaned.replace(/\+/g, "");
   if (hasLeadingPlus) cleaned = "+" + cleaned;
 
-  // 4. Жёстко ограничиваем длину (maxLength на инпуте — вторичная страховка).
-  return cleaned.slice(0, PHONE_MAX_LENGTH);
+  // 3. Определяем лимиты по первому символу.
+  const isInternational = cleaned.startsWith("+");
+  const isLocalEight = !isInternational && cleaned.startsWith("8");
+  const maxDigits = isLocalEight ? 11 : 12;
+  const maxLength = isLocalEight ? 17 : PHONE_MAX_LENGTH;
+
+  // 4. Оставляем не более maxDigits цифр (разделители в подсчёт не идут).
+  let digitCount = 0;
+  let out = "";
+  for (const ch of cleaned) {
+    if (/\d/.test(ch)) {
+      if (digitCount >= maxDigits) continue;
+      digitCount += 1;
+    }
+    out += ch;
+  }
+
+  // 5. Точная обрезка по общей длине (с учётом разделителей).
+  return out.slice(0, maxLength);
 }
 
 export function LeadForm() {
@@ -168,7 +188,9 @@ export function LeadForm() {
     }
   }
 
-  // Экран дедупликации: заявка уже принята, обрабатывается.
+  // Экран дедупликации: форма полностью скрыта, повторная отправка невозможна.
+  // Намеренно БЕЗ кнопки возврата — заявка уже в работе, клиенту некуда «нажать
+  // ещё раз», чтобы не плодить дубли и не тревожить менеджеров.
   if (status === "deduped") {
     return (
       <Section id="lead">
@@ -193,15 +215,8 @@ export function LeadForm() {
             </div>
             <h2 className="text-2xl">Ваша заявка уже принята!</h2>
             <p className="mt-3 text-taupe">
-              Мы обрабатываем её прямо сейчас и скоро свяжемся с вами.
+              Мы уже обрабатываем её и свяжемся с вами в течение 15 минут.
             </p>
-            <button
-              type="button"
-              onClick={() => setStatus("idle")}
-              className="mt-6 font-sans text-sm font-medium text-terracotta underline-offset-4 hover:underline"
-            >
-              Вернуться к форме
-            </button>
           </div>
         </Container>
       </Section>
@@ -341,7 +356,7 @@ export function LeadForm() {
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
-                    maxLength={PHONE_MAX_LENGTH}
+                    maxLength={phone.startsWith("8") && !phone.startsWith("+") ? 17 : PHONE_MAX_LENGTH}
                     placeholder="+375 29 111-22-33"
                     value={phone}
                     onChange={handlePhoneChange}
