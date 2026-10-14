@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { PRODUCTS } from "@/lib/content";
 import { Container } from "@/components/ui/Container";
+import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 /**
@@ -10,7 +11,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
  */
 export function Catalog() {
   return (
-    <section id="coffee" className="scroll-mt-24 border-t border-hairline py-16 sm:py-20 lg:py-24">
+    <Section id="coffee">
       <Container>
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <SectionHeading
@@ -86,6 +87,6 @@ export function Catalog() {
           ))}
         </ul>
       </Container>
-    </section>
+    </Section>
   );
 }

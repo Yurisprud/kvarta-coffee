@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
+import { Section } from "@/components/ui/Section";
 
 /**
  * Hero: главный честный заголовок про свежесть кофе, личная история
@@ -9,8 +10,8 @@ import { ButtonLink } from "@/components/ui/Button";
  */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-hairline">
-      <Container className="grid items-center gap-10 py-14 sm:py-20 lg:grid-cols-12 lg:gap-14 lg:py-24">
+    <Section border="bottom" spacing="hero" overflow>
+      <Container className="grid items-center gap-10 lg:grid-cols-12 lg:gap-14">
         {/* Текстовая колонка */}
         <div className="lg:col-span-7">
           {/* Надзаголовок-обещание */}
@@ -86,6 +87,6 @@ export function Hero() {
           </figure>
         </div>
       </Container>
-    </section>
+    </Section>
   );
 }

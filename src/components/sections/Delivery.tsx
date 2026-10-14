@@ -1,5 +1,6 @@
 import { CONTACT } from "@/lib/content";
 import { Container } from "@/components/ui/Container";
+import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 /**
@@ -9,7 +10,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
  */
 export function Delivery() {
   return (
-    <section id="delivery" className="scroll-mt-24 border-t border-hairline bg-paper py-16 sm:py-20 lg:py-24">
+    <Section id="delivery" tone="paper">
       <Container>
         <SectionHeading
           eyebrow="Как получить"
@@ -71,6 +72,6 @@ export function Delivery() {
           </div>
         </div>
       </Container>
-    </section>
+    </Section>
   );
 }

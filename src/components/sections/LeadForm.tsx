@@ -3,25 +3,29 @@
 import { useState, type FormEvent } from "react";
 import { INTEREST_OPTIONS, type InterestKey } from "@/lib/content";
 import { validateBelarusPhone } from "@/utils/phone";
+import { useUtm } from "@/hooks/useUtm";
+import type { LeadFormInput, LeadApiErrorResponse } from "@/types/lead";
 import { Container } from "@/components/ui/Container";
+import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { cn } from "@/utils/cn";
 
 /**
- * Форма заявки — только UI и состояния (этап 3).
- * Интеграция с POST /api/lead будет добавлена на следующем шаге, поэтому
- * submit сейчас имитирует отправку и переводит форму в состояние успеха.
+ * Форма заявки с полной интеграцией POST /api/lead (этап 4).
  *
- * Состояния: idle → submitting → success | error.
- * Валидация телефона переиспользует серверный `validateBelarusPhone`.
+ * Состояния: idle → submitting → success | deduped | error.
+ *  - success — заявка создана, поля очищены, показан Success-экран;
+ *  - deduped — сервер вернул `deduplicated: true` (повтор в течение 10 минут),
+ *    показываем вежливое уведомление вместо стандартного «Спасибо»;
+ *  - error — показываем серверные `fieldErrors` под соответствующими инпутами.
+ *
+ * UTM-метки собирает хук `useUtm` (URL → sessionStorage) и отправляет с формой.
  */
 
-type Status = "idle" | "submitting" | "success" | "error";
+type Status = "idle" | "submitting" | "success" | "deduped" | "error";
 
-interface FormErrors {
-  name?: string;
-  phone?: string;
-}
+type FieldKey = "name" | "phone";
+type FormErrors = Partial<Record<FieldKey, string>>;
 
 /** Общие классы полей ввода — единый «рукодельный» вид. */
 const fieldBase =
@@ -37,10 +41,21 @@ export function LeadForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<Status>("idle");
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  // UTM-метки для атрибуции заявки.
+  const { utm } = useUtm();
+
+  function resetForm() {
+    setName("");
+    setPhone("");
+    setComment("");
+    setInterest("beans");
+    setErrors({});
+  }
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    // Клиентская валидация (дублирует серверную — для UX).
+    // Быстрая клиентская валидация (дублирует серверную — для мгновенного UX).
     const nextErrors: FormErrors = {};
     if (name.trim().length < 2) {
       nextErrors.name = "Укажите имя (минимум 2 символа).";
@@ -56,17 +71,107 @@ export function LeadForm() {
       return;
     }
 
-    // Имитация отправки (реальный fetch добавим на следующем шаге).
     setStatus("submitting");
-    window.setTimeout(() => {
-      setStatus("success");
-    }, 700);
+
+    // Формируем payload по контракту LeadFormInput (+ UTM из хука).
+    const payload: LeadFormInput = {
+      name: name.trim(),
+      phone,
+      interest,
+      ...(comment.trim() ? { comment: comment.trim() } : {}),
+      ...utm,
+    };
+
+    try {
+      const res = await fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data: { ok: true; id: string; deduplicated?: boolean } =
+          await res.json();
+        if (data.deduplicated) {
+          setStatus("deduped");
+        } else {
+          setStatus("success");
+          resetForm();
+        }
+        return;
+      }
+
+      // Ошибка валидации/сервера.
+      let errorBody: LeadApiErrorResponse | null = null;
+      try {
+        errorBody = (await res.json()) as LeadApiErrorResponse;
+      } catch {
+        errorBody = null;
+      }
+
+      if (res.status === 400 && errorBody?.fieldErrors) {
+        const serverErrors: FormErrors = {};
+        if (errorBody.fieldErrors.name) serverErrors.name = errorBody.fieldErrors.name;
+        if (errorBody.fieldErrors.phone)
+          serverErrors.phone = errorBody.fieldErrors.phone;
+        setErrors(serverErrors);
+        setStatus("error");
+        return;
+      }
+
+      setErrors({});
+      setStatus("error");
+    } catch {
+      // Сетевая ошибка / сервер недоступен.
+      setErrors({});
+      setStatus("error");
+    }
   }
 
-  // Состояние успеха — показываем вместо формы.
+  // Экран дедупликации: заявка уже принята, обрабатывается.
+  if (status === "deduped") {
+    return (
+      <Section id="lead">
+        <Container>
+          <div className="mx-auto max-w-lg rounded-card border border-hairline bg-paper p-8 text-center sm:p-10">
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-terracotta/10"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6 text-terracotta"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 6v6l4 2" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <h2 className="text-2xl">Ваша заявка уже принята!</h2>
+            <p className="mt-3 text-taupe">
+              Мы обрабатываем её прямо сейчас и скоро свяжемся с вами.
+            </p>
+            <button
+              type="button"
+              onClick={() => setStatus("idle")}
+              className="mt-6 font-sans text-sm font-medium text-terracotta underline-offset-4 hover:underline"
+            >
+              Вернуться к форме
+            </button>
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
+  // Success-экран.
   if (status === "success") {
     return (
-      <section id="lead" className="scroll-mt-24 border-t border-hairline py-16 sm:py-20 lg:py-24">
+      <Section id="lead">
         <Container>
           <div className="mx-auto max-w-lg rounded-card border border-hairline bg-paper p-8 text-center sm:p-10">
             <div
@@ -85,32 +190,26 @@ export function LeadForm() {
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </div>
-            <h2 className="text-2xl">Спасибо, {name.trim()}!</h2>
+            <h2 className="text-2xl">Спасибо за заявку!</h2>
             <p className="mt-3 text-taupe">
-              Заявка принята. Мы свяжемся с вами и подтвердим заказ — обычно
-              отвечаем в течение дня.
+              Мы получили ваш заказ и свяжемся с вами, чтобы подтвердить
+              детали — обычно отвечаем в течение дня.
             </p>
             <button
               type="button"
-              onClick={() => {
-                setStatus("idle");
-                setName("");
-                setPhone("");
-                setComment("");
-                setErrors({});
-              }}
+              onClick={() => setStatus("idle")}
               className="mt-6 font-sans text-sm font-medium text-terracotta underline-offset-4 hover:underline"
             >
               Отправить ещё одну заявку
             </button>
           </div>
         </Container>
-      </section>
+      </Section>
     );
   }
 
   return (
-    <section id="lead" className="scroll-mt-24 border-t border-hairline py-16 sm:py-20 lg:py-24">
+    <Section id="lead">
       <Container>
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
           {/* Приглашение */}
@@ -129,6 +228,18 @@ export function LeadForm() {
               onSubmit={handleSubmit}
               className="rounded-card border border-hairline bg-paper p-6 sm:p-8"
             >
+              {/* Общая ошибка отправки (не валидация полей) */}
+              {status === "error" &&
+                Object.keys(errors).length === 0 && (
+                  <div
+                    role="alert"
+                    className="mb-5 rounded-card border border-terracotta/30 bg-terracotta/[0.06] px-4 py-3 font-sans text-sm text-terracotta"
+                  >
+                    Не удалось отправить заявку. Проверьте соединение или
+                    попробуйте ещё раз чуть позже.
+                  </div>
+                )}
+
               <div className="grid gap-5 sm:grid-cols-2">
                 {/* Имя */}
                 <div className="sm:col-span-1">
@@ -246,7 +357,34 @@ export function LeadForm() {
                   disabled={status === "submitting"}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-terracotta px-6 py-3 font-sans text-sm font-medium text-paper transition-colors hover:bg-terracotta-dark disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {status === "submitting" ? "Отправляем…" : "Отправить заявку"}
+                  {status === "submitting" ? (
+                    <>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4 animate-spin"
+                        fill="none"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="9"
+                          stroke="currentColor"
+                          strokeOpacity="0.3"
+                          strokeWidth={3}
+                        />
+                        <path
+                          d="M21 12a9 9 0 0 0-9-9"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      Отправляем…
+                    </>
+                  ) : (
+                    "Отправить заявку"
+                  )}
                 </button>
                 <p className="font-sans text-xs text-taupe-light">
                   Нажимая кнопку, вы соглашаетесь с обработкой персональных
@@ -257,6 +395,6 @@ export function LeadForm() {
           </div>
         </div>
       </Container>
-    </section>
+    </Section>
   );
 }

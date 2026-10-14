@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FRESHNESS_STEPS } from "@/lib/content";
 import { Container } from "@/components/ui/Container";
+import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { cn } from "@/utils/cn";
 
@@ -17,7 +18,7 @@ export function FreshnessTimeline() {
     FRESHNESS_STEPS.find((s) => s.id === activeId) ?? FRESHNESS_STEPS[2];
 
   return (
-    <section id="philosophy" className="scroll-mt-24 border-t border-hairline bg-paper py-16 sm:py-20 lg:py-24">
+    <Section id="philosophy" tone="paper">
       <Container>
         <SectionHeading
           eyebrow="Философия"
@@ -114,6 +115,6 @@ export function FreshnessTimeline() {
           </div>
         </div>
       </Container>
-    </section>
+    </Section>
   );
 }

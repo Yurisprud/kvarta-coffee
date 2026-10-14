@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
+import { Section } from "@/components/ui/Section";
 
 const PERKS = [
   "Две пачки по 250 г каждый месяц",
@@ -16,11 +17,8 @@ const PERKS = [
  */
 export function Subscription() {
   return (
-    <section
-      id="subscription"
-      className="scroll-mt-24 border-t border-hairline bg-espresso text-cream"
-    >
-      <Container className="py-16 sm:py-20 lg:py-24">
+    <Section id="subscription" tone="espresso">
+      <Container>
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           {/* Текстовая часть */}
           <div>
@@ -78,6 +76,6 @@ export function Subscription() {
           </div>
         </div>
       </Container>
-    </section>
+    </Section>
   );
 }

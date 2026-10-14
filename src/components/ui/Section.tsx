@@ -1,37 +1,66 @@
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
 
+type Tone = "cream" | "paper" | "espresso";
+type Border = "top" | "bottom" | "none";
+type Spacing = "default" | "hero" | "none";
+
+/** Фон и цвет текста секции. */
+const toneClasses: Record<Tone, string> = {
+  cream: "bg-cream",
+  paper: "bg-paper",
+  espresso: "bg-espresso text-cream",
+};
+
+/** Разделительная линия сверху/снизу (hairline) — аккуратный редакторский макет. */
+const borderClasses: Record<Border, string> = {
+  top: "border-t border-hairline",
+  bottom: "border-b border-hairline",
+  none: "",
+};
+
+/** Вертикальные отступы секции. */
+const spacingClasses: Record<Spacing, string> = {
+  default: "py-16 sm:py-20 lg:py-24",
+  hero: "py-14 sm:py-20 lg:py-24",
+  none: "",
+};
+
 /**
- * Обёртка секции лендинга: единые вертикальные отступы и опциональный
- * id для якорной навигации. Верхняя hairline-линия отделяет секции,
- * придавая ощущение аккуратного редакторского макета.
+ * Единая обёртка секции лендинга: фон (tone), разделительная линия (border),
+ * вертикальные отступы (spacing) и опциональный `id` для якорной навигации.
+ * Используется всеми смысловыми блоками страницы для консистентности.
+ *
+ * Семантические `<header>` и `<footer>` этой обёрткой намеренно не заменяются.
  */
 export function Section({
   id,
   children,
   className,
-  bordered = true,
   tone = "cream",
+  border = "top",
+  spacing = "default",
+  overflow = false,
 }: {
   id?: string;
   children: ReactNode;
   className?: string;
-  bordered?: boolean;
-  tone?: "cream" | "paper" | "espresso";
+  tone?: Tone;
+  border?: Border;
+  spacing?: Spacing;
+  /** Обрезать выступающий контент (напр. декоративные элементы hero). */
+  overflow?: boolean;
 }) {
-  const tones = {
-    cream: "bg-cream",
-    paper: "bg-paper",
-    espresso: "bg-espresso text-cream",
-  } as const;
-
   return (
     <section
       id={id}
       className={cn(
-        "scroll-mt-24 py-16 sm:py-20 lg:py-24",
-        tones[tone],
-        bordered && "border-t border-hairline",
+        // компенсация липкого хедера при переходе по якорю
+        "scroll-mt-24",
+        toneClasses[tone],
+        borderClasses[border],
+        spacingClasses[spacing],
+        overflow && "overflow-hidden",
         className,
       )}
     >
@@ -39,3 +68,4 @@ export function Section({
     </section>
   );
 }
+
