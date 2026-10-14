@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# leads storage (contains personal data — do NOT commit)
+src/lib/db/leads.json
+src/lib/db/*.tmp
+
+
 # vercel
 .vercel
 
