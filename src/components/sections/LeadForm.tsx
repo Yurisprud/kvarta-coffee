@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { INTEREST_OPTIONS, type InterestKey } from "@/lib/content";
 import { validateBelarusPhone } from "@/utils/phone";
 import { useUtm } from "@/hooks/useUtm";
@@ -33,6 +33,35 @@ const fieldBase =
 const fieldOk = "border-hairline-strong focus:border-terracotta";
 const fieldErr = "border-terracotta/60 focus:border-terracotta";
 
+/** Максимум символов: с запасом на формат `+375 (29) 111-22-33` (ровно 19). */
+const PHONE_MAX_LENGTH = 19;
+
+/**
+ * Очищает сырой ввод телефона прямо при наборе.
+ * Разрешаем только цифры, пробелы, дефисы и круглые скобки, а знак «+» —
+ * исключительно в самом начале (международный формат). Все буквы и прочие
+ * спецсимволы отсекаются. Поддерживаются оба популярных в РБ формата:
+ * локальный `8029…` и международный `+375…`.
+ *
+ * Серверный `validateBelarusPhone` всё равно нормализует строку, поэтому
+ * сырой (но очищенный) вид безопасно передаётся в бэкенд.
+ */
+function sanitizePhoneInput(raw: string): string {
+  // 1. Оставляем только разрешённые символы.
+  let cleaned = raw.replace(/[^\d+ ()-]/g, "");
+
+  // 2. Знак «+» допустим только первым символом (убираем все остальные).
+  cleaned = cleaned.replace(/(?!^)\+/g, "");
+
+  // 3. Ставим единственный ведущий «+» в самое начало, если он был введён.
+  const hasLeadingPlus = cleaned.startsWith("+");
+  cleaned = cleaned.replace(/\+/g, "");
+  if (hasLeadingPlus) cleaned = "+" + cleaned;
+
+  // 4. Жёстко ограничиваем длину (maxLength на инпуте — вторичная страховка).
+  return cleaned.slice(0, PHONE_MAX_LENGTH);
+}
+
 export function LeadForm() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -52,6 +81,13 @@ export function LeadForm() {
     setComment("");
     setInterest("beans");
     setErrors({});
+  }
+
+  // Обработчик ввода телефона: чистим строку «на лету» и храним в стейте.
+  // Сырую (но санитизированную) строку дальше получат и клиентская валидация,
+  // и payload для бэкенда — validateBelarusPhone нормализует её сам.
+  function handlePhoneChange(e: ChangeEvent<HTMLInputElement>) {
+    setPhone(sanitizePhoneInput(e.target.value));
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -305,9 +341,10 @@ export function LeadForm() {
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
+                    maxLength={PHONE_MAX_LENGTH}
                     placeholder="+375 29 111-22-33"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={handlePhoneChange}
                     aria-invalid={Boolean(errors.phone)}
                     aria-describedby={
                       errors.phone ? "lead-phone-error" : undefined
