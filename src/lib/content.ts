@@ -1,0 +1,162 @@
+/**
+ * Контент лендинга «Кварта».
+ *
+ * Единая точка правды для текстов, каталога и контактов. Вынесено из
+ * компонентов, чтобы секции оставались презентационными, а контент легко
+ * редактировался без погружения в разметку.
+ */
+
+/** Категория интереса для формы — синхронизирована с типом LeadInterest. */
+export type InterestKey = "beans" | "drip" | "hoReCa" | "tasting" | "other";
+
+export interface NavItem {
+  href: string;
+  label: string;
+}
+
+/** Пункты меню-якорей в хедере. */
+export const NAV_ITEMS: NavItem[] = [
+  { href: "#coffee", label: "Кофе" },
+  { href: "#philosophy", label: "О свежести" },
+  { href: "#subscription", label: "Подписка" },
+  { href: "#delivery", label: "Доставка" },
+  { href: "#lead", label: "Заявка" },
+];
+
+/** Позиция каталога. */
+export interface Product {
+  id: string;
+  name: string;
+  /** Страна/регион происхождения. */
+  origin: string;
+  /** Вкусовой профиль — короткие дескрипторы. */
+  notes: string[];
+  /** Тип обжарки. */
+  roast: string;
+  /** Фасовка, напр. «250 г». */
+  weight: string;
+  /** Цена в белорусских рублях. */
+  price: number;
+  /** Подпись к фото (alt). */
+  alt: string;
+  /** URL фото с Unsplash (теплые кофейные тона). */
+  image: string;
+  /** Ключ категории для preselected-интереса в форме. */
+  interest: InterestKey;
+}
+
+/** Каталог ассортимента. */
+export const PRODUCTS: Product[] = [
+  {
+    id: "ethiopia",
+    name: "Эфиопия Иргачеффе",
+    origin: "Эфиопия",
+    notes: ["Цветочный", "Бергамот"],
+    roast: "Светлая обжарка",
+    weight: "250 г",
+    price: 32,
+    alt: "Светлообжаренное кофе в зёрнах Эфиопия Иргачеффе",
+    image:
+      "https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=900&q=80",
+    interest: "beans",
+  },
+  {
+    id: "colombia",
+    name: "Колумбия Уила",
+    origin: "Колумбия",
+    notes: ["Карамель", "Красное яблоко"],
+    roast: "Средняя обжарка",
+    weight: "250 г",
+    price: 29,
+    alt: "Зёрна кофе Колумбия Уила средней обжарки",
+    image:
+      "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=900&q=80",
+    interest: "beans",
+  },
+  {
+    id: "brazil",
+    name: "Бразилия Серрадо",
+    origin: "Бразилия",
+    notes: ["Орех", "Шоколад"],
+    roast: "Под эспрессо",
+    weight: "250 г",
+    price: 26,
+    alt: "Кофе Бразилия Серрадо для эспрессо",
+    image:
+      "https://images.unsplash.com/photo-1512568400610-62da28bc8a13?auto=format&fit=crop&w=900&q=80",
+    interest: "beans",
+  },
+  {
+    id: "drip-pack",
+    name: "Дрип-пакеты, ассорти",
+    origin: "Сборник",
+    notes: ["Удобно в дорогу", "10 штук"],
+    roast: "Разная обжарка",
+    weight: "10 шт",
+    price: 18,
+    alt: "Дрип-пакеты для заваривания кофе в дорогу",
+    image:
+      "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=900&q=80",
+    interest: "drip",
+  },
+];
+
+/** Варианты категории интереса для <select> в форме. */
+export const INTEREST_OPTIONS: { value: InterestKey; label: string }[] = [
+  { value: "beans", label: "Кофе в зёрнах / на развес" },
+  { value: "drip", label: "Дрип-пакеты" },
+  { value: "hoReCa", label: "Для кофейни или офиса" },
+  { value: "tasting", label: "Дегустация / курс по обжарке" },
+  { value: "other", label: "Другое" },
+];
+
+/** Этапы таймлайна «Почему свежесть важна». */
+export interface FreshnessStep {
+  id: string;
+  /** День после обжарки. */
+  day: string;
+  title: string;
+  description: string;
+}
+
+export const FRESHNESS_STEPS: FreshnessStep[] = [
+  {
+    id: "roast",
+    day: "День 0",
+    title: "Обжарка",
+    description:
+      "Обжариваем малыми партиями по 5 кг — так каждый сорт раскрывается предсказуемо, а не «как получится» на промышленном ростере.",
+  },
+  {
+    id: "rest",
+    day: "День 1–2",
+    title: "Отдых",
+    description:
+      "Кофе отходит от обжарки: уходит лишний углекислый газ, раскрываются ароматы. Это нормально и важно.",
+  },
+  {
+    id: "peak",
+    day: "День 1–3",
+    title: "Пик вкуса",
+    description:
+      "Именно тогда кофе к вам и попадает. Чашка вкусная, сладкая и ароматная — такой задумал фермер.",
+  },
+  {
+    id: "stale",
+    day: "День 21+",
+    title: "Увядание",
+    description:
+      "Через три недели аромат тускнеет, появляется затхлость. Магазинный кофе часто приезжает к вам уже на этом этапе.",
+  },
+];
+
+/** Контактная и сервисная информация. */
+export const CONTACT = {
+  city: "Минск",
+  pickupAddress: "ул. Короля, 9",
+  pickupNote: "Самовывоз по предварительной договорённости",
+  hours: "Пт–Сб, 11:00 – 18:00",
+  roastDay: "Обжариваем по четвергам",
+  deliveryDay: "Развозим по пятницам",
+  freeDeliveryFrom: 50,
+} as const;
