@@ -9,7 +9,8 @@
  *  5. собрать UTM-метки (из тела и/или query-строки);
  *  6. определить IP клиента (с учётом прокси Vercel/Netlify);
  *  7. сохранить с дедупликацией ({@link saveLead});
- *  8. вернуть типизированный ответ ({@link LeadApiResponse}).
+ *  8. продублировать заявку в Telegram-бот ({@link sendLeadToTelegram}, best-effort);
+ *  9. вернуть типизированный ответ ({@link LeadApiResponse}).
  *
  * Примечание (Next.js 16): при включённом `cacheComponents` segment-конфиги
  * `runtime`/`dynamic` в route-хендлерах запрещены. Рантайм `nodejs` — дефолт,
@@ -19,6 +20,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { validateBelarusPhone } from "@/utils/phone";
 import { saveLead } from "@/lib/db";
+import { sendLeadToTelegram } from "@/lib/telegram";
 import type {
   LeadApiResponse,
   LeadFormInput,
@@ -186,6 +188,15 @@ export async function POST(
       ip,
       ...utm,
     });
+
+    // --- 9. Дублирование в Telegram (best-effort, НЕ блокирует ответ) ---
+    // Лид уже в базе, поэтому сбой Telegram не должен менять ответ клиенту —
+    // `sendLeadToTelegram` сам ловит все ошибки внутри. При дедупликации
+    // уведомление не шлём: новая заявка не создавалась, менеджеры уже видели
+    // исходную (иначе повтор в течение 10 минут спамил бы чат).
+    if (!deduplicated) {
+      await sendLeadToTelegram(record);
+    }
 
     return NextResponse.json({ ok: true, id: record.id, deduplicated });
   } catch (error) {

@@ -189,6 +189,8 @@ npm run lint
 | Переменная | По умолчанию | Назначение |
 |------------|--------------|------------|
 | `LEADS_DB_PATH` | `<cwd>/src/lib/db/leads.json` | Путь к JSON-хранилищу заявок (напр. `/tmp/leads.json` в serverless) |
+| `TELEGRAM_BOT_TOKEN` | — | Токен Telegram-бота от @BotFather; если не задан — уведомления пропускаются с `console.warn` |
+| `TELEGRAM_CHAT_ID` | — | ID чата/канала, куда дублируются заявки; используется вместе с токеном |
 
 ---
 
