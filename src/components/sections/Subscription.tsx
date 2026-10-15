@@ -56,6 +56,7 @@ export function Subscription() {
               <ButtonLink
                 href="#lead"
                 variant="primary"
+                data-interest="subscription"
                 className="bg-cream text-espresso hover:bg-cream/90"
               >
                 Оформить подписку

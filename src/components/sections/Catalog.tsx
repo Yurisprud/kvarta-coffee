@@ -70,6 +70,7 @@ export function Catalog() {
                   <div className="mt-auto pt-5">
                     <a
                       href="#lead"
+                      data-interest={product.interest}
                       className="inline-flex items-center gap-1.5 font-sans text-sm font-medium text-terracotta underline-offset-4 hover:underline"
                     >
                       Заказать

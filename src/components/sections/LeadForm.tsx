@@ -1,9 +1,10 @@
 ﻿"use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import {
   INTEREST_OPTIONS,
   SOURCE_OPTIONS,
+  isInterestKey,
   type InterestKey,
   type SourceKey,
 } from "@/lib/content";
@@ -31,7 +32,7 @@ import { cn } from "@/utils/cn";
 
 type Status = "idle" | "submitting" | "success" | "deduped" | "error";
 
-type FieldKey = "name" | "phone" | "source";
+type FieldKey = "name" | "phone" | "interest" | "source";
 type FormErrors = Partial<Record<FieldKey, string>>;
 
 /** Общие классы полей ввода — единый «рукодельный» вид. */
@@ -92,7 +93,7 @@ function sanitizePhoneInput(raw: string): string {
 export function LeadForm() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [interest, setInterest] = useState<InterestKey>("beans");
+  const [interest, setInterest] = useState<InterestKey>("subscription");
   const [comment, setComment] = useState("");
   // Явный выбор источника (теги); null — пока не выбран, валидируется при сабмите.
   const [source, setSource] = useState<SourceKey | null>(null);
@@ -108,10 +109,26 @@ export function LeadForm() {
     setName("");
     setPhone("");
     setComment("");
-    setInterest("beans");
+    setInterest("subscription");
     setSource(null);
     setErrors({});
   }
+
+  // Предвыбор интереса при переходе с CTA каталога/подписки: карточки и кнопка
+  // «Оформить подписку» несут data-interest, ведут на #lead и здесь подсказывают
+  // форме, какую категорию предвыбрать. Делегирование на document позволяет
+  // оставить Catalog/Subscription серверными компонентами.
+  useEffect(() => {
+    function handleCtaClick(e: MouseEvent) {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const key = target
+        .closest<HTMLAnchorElement>("a[data-interest]")?.dataset.interest;
+      if (key && isInterestKey(key)) setInterest(key);
+    }
+    document.addEventListener("click", handleCtaClick);
+    return () => document.removeEventListener("click", handleCtaClick);
+  }, []);
 
   /** Выбор источника: обновляет состояние и снимает ошибку поля. */
   function selectSource(value: SourceKey) {
@@ -198,6 +215,8 @@ export function LeadForm() {
           serverErrors.phone = errorBody.fieldErrors.phone;
         if (errorBody.fieldErrors.source)
           serverErrors.source = errorBody.fieldErrors.source;
+        if (errorBody.fieldErrors.interest)
+          serverErrors.interest = errorBody.fieldErrors.interest;
         setErrors(serverErrors);
         setStatus("error");
         return;
@@ -413,7 +432,11 @@ export function LeadForm() {
                     name="interest"
                     value={interest}
                     onChange={(e) => setInterest(e.target.value as InterestKey)}
-                    className={cn(fieldBase, fieldOk, "appearance-none pr-10")}
+                    aria-invalid={Boolean(errors.interest)}
+                    aria-describedby={
+                      errors.interest ? "lead-interest-error" : undefined
+                    }
+                    className={cn(fieldBase, errors.interest ? fieldErr : fieldOk, "appearance-none pr-10")}
                   >
                     {INTEREST_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -421,6 +444,14 @@ export function LeadForm() {
                       </option>
                     ))}
                   </select>
+                  {errors.interest && (
+                    <p
+                      id="lead-interest-error"
+                      className="mt-1.5 font-sans text-xs text-terracotta"
+                    >
+                      {errors.interest}
+                    </p>
+                  )}
                 </div>
 
                 {/* Комментарий */}

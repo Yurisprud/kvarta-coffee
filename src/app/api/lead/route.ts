@@ -27,13 +27,11 @@ import type {
   UtmParams,
 } from "@/types/lead";
 
-/** Допустимые значения категории интереса. */
+/** Допустимые значения категории интереса (строго по ТЗ). */
 const ALLOWED_INTERESTS: readonly LeadInterest[] = [
-  "beans",
-  "drip",
-  "hoReCa",
-  "tasting",
-  "other",
+  "subscription",
+  "order",
+  "question",
 ];
 
 /** Допустимые значения явного выбора источника (теги в форме). */

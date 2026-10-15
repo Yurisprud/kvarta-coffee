@@ -7,7 +7,7 @@
  */
 
 /** Категория интереса для формы — синхронизирована с типом LeadInterest. */
-export type InterestKey = "beans" | "drip" | "hoReCa" | "tasting" | "other";
+export type InterestKey = "subscription" | "order" | "question";
 
 export interface NavItem {
   href: string;
@@ -41,7 +41,7 @@ export interface Product {
   alt: string;
   /** URL фото с Unsplash (теплые кофейные тона). */
   image: string;
-  /** Ключ категории для preselected-интереса в форме. */
+  /** Ключ категории для предвыбора интереса в форме (CTA каталога). */
   interest: InterestKey;
 }
 
@@ -58,7 +58,7 @@ export const PRODUCTS: Product[] = [
     alt: "Светлообжаренное кофе в зёрнах Эфиопия Иргачеффе",
     image:
       "https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=900&q=80",
-    interest: "beans",
+    interest: "order",
   },
   {
     id: "colombia",
@@ -71,7 +71,7 @@ export const PRODUCTS: Product[] = [
     alt: "Зёрна кофе Колумбия Уила средней обжарки",
     image:
       "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=900&q=80",
-    interest: "beans",
+    interest: "order",
   },
   {
     id: "brazil",
@@ -84,7 +84,7 @@ export const PRODUCTS: Product[] = [
     alt: "Кофе Бразилия Серрадо для эспрессо",
     image:
       "https://images.unsplash.com/photo-1512568400610-62da28bc8a13?auto=format&fit=crop&w=900&q=80",
-    interest: "beans",
+    interest: "order",
   },
   {
     id: "drip-pack",
@@ -97,18 +97,21 @@ export const PRODUCTS: Product[] = [
     alt: "Дрип-пакеты для заваривания кофе в дорогу",
     image:
       "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=900&q=80",
-    interest: "drip",
+    interest: "order",
   },
 ];
 
-/** Варианты категории интереса для <select> в форме. */
+/** Варианты категории интереса для <select> в форме (строго по ТЗ). */
 export const INTEREST_OPTIONS: { value: InterestKey; label: string }[] = [
-  { value: "beans", label: "Кофе в зёрнах / на развес" },
-  { value: "drip", label: "Дрип-пакеты" },
-  { value: "hoReCa", label: "Для кофейни или офиса" },
-  { value: "tasting", label: "Дегустация / курс по обжарке" },
-  { value: "other", label: "Другое" },
+  { value: "subscription", label: "Подписка" },
+  { value: "order", label: "Разовый заказ" },
+  { value: "question", label: "Вопрос" },
 ];
+
+/** Типовая проверка: входит ли строка в допустимые ключи интереса. */
+export function isInterestKey(value: string): value is InterestKey {
+  return INTEREST_OPTIONS.some((opt) => opt.value === value);
+}
 
 /**
  * Ключ источника перехода, выбранный посетителем явно (теги в форме).
