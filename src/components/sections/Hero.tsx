@@ -58,7 +58,7 @@ export function Hero() {
           {/* Главное целевое действие */}
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
             <ButtonLink href="#coffee" variant="primary">
-              Смотреть кофе
+              Наш вкусный кофе
               <span aria-hidden="true">→</span>
             </ButtonLink>
             <ButtonLink href="#subscription" variant="secondary">
