@@ -95,8 +95,10 @@ export function LeadForm() {
   const [phone, setPhone] = useState("");
   const [interest, setInterest] = useState<InterestKey>("subscription");
   const [comment, setComment] = useState("");
-  // Явный выбор источника (теги); null — пока не выбран, валидируется при сабмите.
-  const [source, setSource] = useState<SourceKey | null>(null);
+  // Явный выбор источника (теги); undefined — пока не выбран, валидируется при сабмите.
+  // Локальный тип стейта шире контрактного SourceKey: пустое состояние нужно
+  // для UX (до выбора), в payload попадает только суженное значение.
+  const [source, setSource] = useState<SourceKey | undefined>(undefined);
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<Status>("idle");
   // Honeypot-поле: люди его не видят и не заполняют, а боты — да.
@@ -110,7 +112,7 @@ export function LeadForm() {
     setPhone("");
     setComment("");
     setInterest("subscription");
-    setSource(null);
+    setSource(undefined);
     setErrors({});
   }
 
@@ -155,14 +157,14 @@ export function LeadForm() {
     if (!phoneCheck.valid) {
       nextErrors.phone = phoneCheck.error ?? "Некорректный номер телефона.";
     }
-    if (source === null) {
+    if (source === undefined) {
       nextErrors.source = "Выберите, откуда вы о нас узнали.";
     }
 
     setErrors(nextErrors);
-    // `|| source === null` — страховка и для TypeScript: после этой проверки
-    // `source` сужается до SourceKey для payload ниже.
-    if (Object.keys(nextErrors).length > 0 || source === null) {
+    // `|| source === undefined` — страховка и для TypeScript: после этой
+    // проверки `source` сужается до SourceKey для payload ниже.
+    if (Object.keys(nextErrors).length > 0 || source === undefined) {
       setStatus("error");
       return;
     }
@@ -506,7 +508,7 @@ export function LeadForm() {
                         role="radio"
                         aria-checked={isSelected}
                         tabIndex={
-                          isSelected || (source === null && index === 0)
+                          isSelected || (source === undefined && index === 0)
                             ? 0
                             : -1
                         }

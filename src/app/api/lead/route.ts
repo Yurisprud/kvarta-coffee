@@ -20,30 +20,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { validateBelarusPhone } from "@/utils/phone";
 import { saveLead } from "@/lib/db";
+import { isInterestKey, isSourceKey } from "@/lib/content";
 import { sendLeadToTelegram } from "@/lib/telegram";
 import type {
   LeadApiResponse,
   LeadFormInput,
-  LeadInterest,
-  LeadSource,
   UtmParams,
 } from "@/types/lead";
-
-/** Допустимые значения категории интереса (строго по ТЗ). */
-const ALLOWED_INTERESTS: readonly LeadInterest[] = [
-  "subscription",
-  "order",
-  "question",
-];
-
-/** Допустимые значения явного выбора источника (теги в форме). */
-const ALLOWED_SOURCES: readonly LeadSource[] = [
-  "instagram",
-  "yandex",
-  "google",
-  "friends",
-  "other",
-];
 
 /** Ключи UTM-меток, которые мы вытаскиваем из запроса. */
 const UTM_KEYS: readonly (keyof UtmParams)[] = [
@@ -139,17 +122,21 @@ export async function POST(
     fieldErrors.phone = phoneCheck.error ?? "Некорректный номер телефона.";
   }
 
-  // --- 4. Валидация категории интереса ---
-  const interest = typeof body.interest === "string" ? body.interest : "";
-  if (!ALLOWED_INTERESTS.includes(interest as LeadInterest)) {
+  // --- 4. Валидация категории интереса (type guard из контента) ---
+  // `isInterestKey` сужает строку из тела запроса до InterestKey — единый
+  // источник правды по ключам лежит в INTEREST_OPTIONS (src/lib/content.ts).
+  const rawInterest = typeof body.interest === "string" ? body.interest : "";
+  const interest = isInterestKey(rawInterest) ? rawInterest : null;
+  if (interest === null) {
     fieldErrors.interest = "Выберите категорию интереса.";
   }
 
   // --- 5. Валидация явного выбора источника (теги «Откуда вы о нас узнали?») ---
   // Обязательное поле: маркетингу нужна атрибуция и без UTM (organic,
   // рекомендации, офлайн). Пустое/неизвестное значение → 400, как у остальных.
-  const source = typeof body.source === "string" ? body.source : "";
-  if (!ALLOWED_SOURCES.includes(source as LeadSource)) {
+  const rawSource = typeof body.source === "string" ? body.source : "";
+  const source = isSourceKey(rawSource) ? rawSource : null;
+  if (source === null) {
     fieldErrors.source = "Выберите, откуда вы о нас узнали.";
   }
 
@@ -166,7 +153,14 @@ export async function POST(
     }
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
+  // Ранний return со сужением типов: после него TS знает, что `interest` и
+  // `source` — валидные ключи (не null), поэтому в saveLead ниже не нужны
+  // небезопасные приведения `as LeadInterest` / `as LeadSource`.
+  if (
+    Object.keys(fieldErrors).length > 0 ||
+    interest === null ||
+    source === null
+  ) {
     return NextResponse.json(
       { ok: false, message: "Проверьте заполнение формы.", fieldErrors },
       { status: 400 },
@@ -182,8 +176,10 @@ export async function POST(
     const { record, deduplicated } = await saveLead({
       name,
       phone: phoneCheck.normalized as string,
-      interest: interest as LeadInterest,
-      source: source as LeadSource,
+      // Сужены type guard-ами выше — типы совпадают с LeadRecord структурно
+      // (InterestKey ≡ LeadInterest, SourceKey ≡ LeadSource).
+      interest,
+      source,
       comment,
       ip,
       ...utm,

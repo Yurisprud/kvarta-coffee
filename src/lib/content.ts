@@ -128,6 +128,11 @@ export const SOURCE_OPTIONS: { value: SourceKey; label: string }[] = [
   { value: "other", label: "Другое" },
 ];
 
+/** Типовая проверка: входит ли строка в допустимые ключи источника. */
+export function isSourceKey(value: string): value is SourceKey {
+  return SOURCE_OPTIONS.some((opt) => opt.value === value);
+}
+
 /**
  * Этапы таймлайна «Почему свежесть важна».
  *
