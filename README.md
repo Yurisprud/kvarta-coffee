@@ -77,7 +77,7 @@ src/
 ### SEO и безопасность
 
 - **Metadata API** (`src/app/layout.tsx`): `title` с шаблоном, `description`, `keywords`, `robots` (index/follow + `max-image-preview`), `alternates.canonical`, полноценный **OpenGraph** (`og:title/description/type/locale/siteName/url/image`) и **Twitter card** (`summary_large_image`).
-- **JSON-LD** (`src/components/JsonLd.tsx`): структурированные данные Schema.org типа **`LocalBusiness` + `CafeOrCoffeeShop`** — адрес (Минск, ул. Короля, 9), часы (Пт–Сб 11:00–18:00), гео, обжарка по четвергам и офферы (кофе 26–32 BYN / 250 г, подписка 54 BYN/мес). Вывод санитизируется от XSS (`replace(/</g, "\u003c")` по документации Next).
+- **JSON-LD** (`src/components/JsonLd.tsx`): структурированные данные Schema.org типа **`LocalBusiness` + `CafeOrCoffeeShop`** — адрес (Минск, ул. Короля, 9), часы пн–пт 8:00–20:00, сб–вс 10:00–18:00, гео, обжарка по четвергам и офферы (кофе 26–32 BYN / 250 г, подписка 54 BYN/мес). Вывод санитизируется от XSS (`replace(/</g, "\u003c")` по документации Next).
 - **Антиспам Honeypot**: в форме скрытое поле `company` (off-screen, `aria-hidden`, `tabIndex={-1}`) невидимо для людей, но приманивает ботов. Сервер проверяет: если `company` заполнено — возвращает **фейковый успех** `200 { ok: true, id: "blocked" }`, но **не пишет** в базу. Бот уверен, что «спам прошёл», и не пытается обойти проверку.
 
 ---

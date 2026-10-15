@@ -17,6 +17,21 @@ export type LeadInterest =
   | "other"; // другое
 
 /**
+ * Источник, о котором посетитель сообщил сам — явный выбор тегов в форме
+ * («Откуда вы о нас узнали?»).
+ *
+ * Не путать с `utm_source`: UTM собирается автоматически, а `source` —
+ * это декларация пользователя, они дополняют друг друга в аналитике.
+ * Значения синхронизированы с SOURCE_OPTIONS в src/lib/content.ts.
+ */
+export type LeadSource =
+  | "instagram"
+  | "yandex"
+  | "google"
+  | "friends"
+  | "other";
+
+/**
  * UTM-метки для атрибуции источника трафика.
  * Все поля опциональны — в Organic-переходах они отсутствуют.
  */
@@ -39,6 +54,12 @@ export interface LeadFormInput extends UtmParams {
   phone: string;
   /** Категория интереса из {@link LeadInterest}. */
   interest: LeadInterest;
+  /**
+   * Откуда посетитель узнал о бренде — выбор тегов в форме.
+   * Обязательное поле: сервер отвечает 400, если значение отсутствует
+   * или не входит в {@link LeadSource}.
+   */
+  source: LeadSource;
   /** Свободный комментарий посетителя (опционально, до 1000 символов). */
   comment?: string;
 }

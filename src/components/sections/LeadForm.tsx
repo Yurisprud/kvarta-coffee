@@ -1,7 +1,12 @@
 ﻿"use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
-import { INTEREST_OPTIONS, type InterestKey } from "@/lib/content";
+import {
+  INTEREST_OPTIONS,
+  SOURCE_OPTIONS,
+  type InterestKey,
+  type SourceKey,
+} from "@/lib/content";
 import { validateBelarusPhone } from "@/utils/phone";
 import { useUtm } from "@/hooks/useUtm";
 import type { LeadFormInput, LeadApiErrorResponse } from "@/types/lead";
@@ -20,11 +25,13 @@ import { cn } from "@/utils/cn";
  *  - error — показываем серверные `fieldErrors` под соответствующими инпутами.
  *
  * UTM-метки собирает хук `useUtm` (URL → sessionStorage) и отправляет с формой.
+ * Поле «Откуда вы о нас узнали?» — обязательный radio group тегов (`source`),
+ * продублирован на сервере: без выбора — 400 с fieldErrors.source.
  */
 
 type Status = "idle" | "submitting" | "success" | "deduped" | "error";
 
-type FieldKey = "name" | "phone";
+type FieldKey = "name" | "phone" | "source";
 type FormErrors = Partial<Record<FieldKey, string>>;
 
 /** Общие классы полей ввода — единый «рукодельный» вид. */
@@ -87,6 +94,8 @@ export function LeadForm() {
   const [phone, setPhone] = useState("");
   const [interest, setInterest] = useState<InterestKey>("beans");
   const [comment, setComment] = useState("");
+  // Явный выбор источника (теги); null — пока не выбран, валидируется при сабмите.
+  const [source, setSource] = useState<SourceKey | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<Status>("idle");
   // Honeypot-поле: люди его не видят и не заполняют, а боты — да.
@@ -100,7 +109,14 @@ export function LeadForm() {
     setPhone("");
     setComment("");
     setInterest("beans");
+    setSource(null);
     setErrors({});
+  }
+
+  /** Выбор источника: обновляет состояние и снимает ошибку поля. */
+  function selectSource(value: SourceKey) {
+    setSource(value);
+    setErrors((prev) => (prev.source ? { ...prev, source: undefined } : prev));
   }
 
   // Обработчик ввода телефона: чистим строку «на лету» и храним в стейте.
@@ -122,9 +138,14 @@ export function LeadForm() {
     if (!phoneCheck.valid) {
       nextErrors.phone = phoneCheck.error ?? "Некорректный номер телефона.";
     }
+    if (source === null) {
+      nextErrors.source = "Выберите, откуда вы о нас узнали.";
+    }
 
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
+    // `|| source === null` — страховка и для TypeScript: после этой проверки
+    // `source` сужается до SourceKey для payload ниже.
+    if (Object.keys(nextErrors).length > 0 || source === null) {
       setStatus("error");
       return;
     }
@@ -137,6 +158,7 @@ export function LeadForm() {
       name: name.trim(),
       phone,
       interest,
+      source,
       ...(comment.trim() ? { comment: comment.trim() } : {}),
       ...utm,
       company: honeypot,
@@ -174,6 +196,8 @@ export function LeadForm() {
         if (errorBody.fieldErrors.name) serverErrors.name = errorBody.fieldErrors.name;
         if (errorBody.fieldErrors.phone)
           serverErrors.phone = errorBody.fieldErrors.phone;
+        if (errorBody.fieldErrors.source)
+          serverErrors.source = errorBody.fieldErrors.source;
         setErrors(serverErrors);
         setStatus("error");
         return;
@@ -420,6 +444,77 @@ export function LeadForm() {
                     className={cn(fieldBase, fieldOk, "resize-y")}
                   />
                 </div>
+              </div>
+
+              {/* Источник: крупные теги-плитки вместо <select> (mobile-first,
+                  попадаем пальцем без прицеливания). ARIA-радиогруппа: клик,
+                  Tab и стрелки переключают выбор; ошибка — под блоком. */}
+              <div className="mt-6">
+                <span
+                  id="lead-source-label"
+                  className="mb-2 block font-sans text-sm font-medium text-espresso"
+                >
+                  Откуда вы о нас узнали?
+                </span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="lead-source-label"
+                  aria-invalid={Boolean(errors.source)}
+                  aria-describedby={
+                    errors.source ? "lead-source-error" : undefined
+                  }
+                  className="flex flex-wrap gap-2.5"
+                >
+                  {SOURCE_OPTIONS.map((opt, index) => {
+                    const isSelected = source === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        id={`lead-source-${opt.value}`}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={
+                          isSelected || (source === null && index === 0)
+                            ? 0
+                            : -1
+                        }
+                        onClick={() => selectSource(opt.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                            e.preventDefault();
+                            const dir = e.key === "ArrowRight" ? 1 : -1;
+                            const next =
+                              (index + dir + SOURCE_OPTIONS.length) %
+                              SOURCE_OPTIONS.length;
+                            const nextOpt = SOURCE_OPTIONS[next];
+                            selectSource(nextOpt.value);
+                            // Roving tabindex: фокус следует за выбором.
+                            document
+                              .getElementById(`lead-source-${nextOpt.value}`)
+                              ?.focus();
+                          }
+                        }}
+                        className={cn(
+                          "min-h-11 rounded-full border px-4 py-2.5 font-sans text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/40",
+                          isSelected
+                            ? "border-terracotta bg-terracotta font-medium text-paper"
+                            : "border-hairline bg-cream text-espresso hover:border-terracotta/60 hover:text-terracotta",
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.source && (
+                  <p
+                    id="lead-source-error"
+                    className="mt-2 font-sans text-xs text-terracotta"
+                  >
+                    {errors.source}
+                  </p>
+                )}
               </div>
 
               {/* Действие */}

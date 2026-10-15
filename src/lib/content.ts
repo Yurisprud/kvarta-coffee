@@ -111,6 +111,21 @@ export const INTEREST_OPTIONS: { value: InterestKey; label: string }[] = [
 ];
 
 /**
+ * Ключ источника перехода, выбранный посетителем явно (теги в форме).
+ * Значения синхронизированы с LeadSource в src/types/lead.ts.
+ */
+export type SourceKey = "instagram" | "yandex" | "google" | "friends" | "other";
+
+/** Варианты ответа «Откуда вы о нас узнали?» — крупные теги-плитки в форме. */
+export const SOURCE_OPTIONS: { value: SourceKey; label: string }[] = [
+  { value: "instagram", label: "Instagram" },
+  { value: "yandex", label: "Яндекс" },
+  { value: "google", label: "Google" },
+  { value: "friends", label: "Рекомендация друзей" },
+  { value: "other", label: "Другое" },
+];
+
+/**
  * Этапы таймлайна «Почему свежесть важна».
  *
  * Отражают реальный процесс мастерской: обжарка по четвергам (День 1),
@@ -161,7 +176,7 @@ export const CONTACT = {
   city: "Минск",
   pickupAddress: "ул. Короля, 9",
   pickupNote: "Самовывоз по предварительной договорённости",
-  hours: "Пт–Сб, 11:00 – 18:00",
+  hours: "пн–пт 8:00–20:00, сб–вс 10:00–18:00",
   roastDay: "Обжариваем по четвергам",
   deliveryDay: "Доставляем по пятницам",
   freeDeliveryFrom: 50,

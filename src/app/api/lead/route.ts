@@ -5,10 +5,11 @@
  *  1. принять и провалидировать JSON;
  *  2. отсеять ботов через honeypot-поле `company` (см. ниже);
  *  3. проверить белорусский телефон ({@link validateBelarusPhone});
- *  4. собрать UTM-метки (из тела и/или query-строки);
- *  5. определить IP клиента (с учётом прокси Vercel/Netlify);
- *  6. сохранить с дедупликацией ({@link saveLead});
- *  7. вернуть типизированный ответ ({@link LeadApiResponse}).
+ *  4. провалидировать интерес и явный выбор источника (`source`);
+ *  5. собрать UTM-метки (из тела и/или query-строки);
+ *  6. определить IP клиента (с учётом прокси Vercel/Netlify);
+ *  7. сохранить с дедупликацией ({@link saveLead});
+ *  8. вернуть типизированный ответ ({@link LeadApiResponse}).
  *
  * Примечание (Next.js 16): при включённом `cacheComponents` segment-конфиги
  * `runtime`/`dynamic` в route-хендлерах запрещены. Рантайм `nodejs` — дефолт,
@@ -22,6 +23,7 @@ import type {
   LeadApiResponse,
   LeadFormInput,
   LeadInterest,
+  LeadSource,
   UtmParams,
 } from "@/types/lead";
 
@@ -31,6 +33,15 @@ const ALLOWED_INTERESTS: readonly LeadInterest[] = [
   "drip",
   "hoReCa",
   "tasting",
+  "other",
+];
+
+/** Допустимые значения явного выбора источника (теги в форме). */
+const ALLOWED_SOURCES: readonly LeadSource[] = [
+  "instagram",
+  "yandex",
+  "google",
+  "friends",
   "other",
 ];
 
@@ -134,7 +145,15 @@ export async function POST(
     fieldErrors.interest = "Выберите категорию интереса.";
   }
 
-  // --- 5. Валидация комментария ---
+  // --- 5. Валидация явного выбора источника (теги «Откуда вы о нас узнали?») ---
+  // Обязательное поле: маркетингу нужна атрибуция и без UTM (organic,
+  // рекомендации, офлайн). Пустое/неизвестное значение → 400, как у остальных.
+  const source = typeof body.source === "string" ? body.source : "";
+  if (!ALLOWED_SOURCES.includes(source as LeadSource)) {
+    fieldErrors.source = "Выберите, откуда вы о нас узнали.";
+  }
+
+  // --- 6. Валидация комментария ---
   let comment: string | undefined;
   if (body.comment !== undefined && body.comment !== null) {
     if (typeof body.comment !== "string") {
@@ -154,16 +173,17 @@ export async function POST(
     );
   }
 
-  // --- 6. Сбор аналитики: UTM + IP ---
+  // --- 7. Сбор аналитики: UTM + IP ---
   const utm = collectUtm(request.nextUrl.searchParams, body);
   const ip = getClientIp(request);
 
-  // --- 7. Сохранение с дедупликацией ---
+  // --- 8. Сохранение с дедупликацией ---
   try {
     const { record, deduplicated } = await saveLead({
       name,
       phone: phoneCheck.normalized as string,
       interest: interest as LeadInterest,
+      source: source as LeadSource,
       comment,
       ip,
       ...utm,

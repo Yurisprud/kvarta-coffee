@@ -14,7 +14,7 @@ export function Delivery() {
       <Container>
         <SectionHeading
           eyebrow="Как получить"
-          title="Самовывоз и доставка по Минску"
+          title="Самовывоз и доставка по Минску (от 50 BYN бесплатно)"
           lead={`${CONTACT.roastDay}, ${CONTACT.deliveryDay.toLowerCase()}. Забирайте сами или закажите доставку на дом.`}
         />
 
