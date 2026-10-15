@@ -1,7 +1,7 @@
 import { CONTACT } from "@/lib/content";
 
 /**
- * Структурированные данные Schema.org для локального бизнеса «Кварта».
+ * Структурированные данные Schema.org для локального бизнеса Обжарка «Кварта».
  *
  * Тип `LocalBusiness` расширен подтипом `CafeOrCoffeeShop` (Schema.org
  * допускает массив типов) — это помогает поисковикам точнее классифицировать
@@ -19,7 +19,8 @@ export function JsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "CafeOrCoffeeShop"],
-    name: "Кварта",
+    name: "Обжарка «Кварта»",
+    alternateName: "Кварта",
     description:
       "Небольшая мастерская свежей обжарки кофе в Минске. Обжариваем малыми партиями по 5 кг, привозим кофе на 1–3 день после обжарки. Кофейная подписка и доставка по пятницам.",
     url: SITE_URL,

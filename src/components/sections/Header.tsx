@@ -7,7 +7,7 @@ import { Container } from "@/components/ui/Container";
 import { cn } from "@/utils/cn";
 
 /**
- * Хедер лендинга: текстовый логотип «Кварта», меню-якоря и плашка
+ * Хедер лендинга: текстовый логотип Обжарка «Кварта», меню-якоря и плашка
  * с графиком работы. Липкий, полупрозрачный, с тонкой нижней границей.
  * Мобильное меню реализовано через раскрывающийся список.
  */
@@ -25,7 +25,7 @@ export function Header() {
             <span aria-hidden="true" className="px-2 opacity-50">
               ·
             </span>
-            <span className="hidden sm:inline">развозим по пятницам</span>
+            <span className="hidden sm:inline">доставляем по пятницам</span>
           </p>
         </Container>
       </div>
@@ -38,10 +38,7 @@ export function Header() {
           onClick={() => setOpen(false)}
         >
           <span className="font-display text-2xl font-semibold tracking-tight text-espresso">
-            Кварта
-          </span>
-          <span className="hidden font-sans text-[0.65rem] uppercase tracking-[0.25em] text-taupe-light sm:inline">
-            обжарка
+            Обжарка «Кварта»
           </span>
         </Link>
 

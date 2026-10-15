@@ -24,8 +24,8 @@ export function Hero() {
           </p>
 
           <h1 className="text-balance text-4xl leading-[1.05] sm:text-5xl lg:text-6xl">
-            Свежий кофе из Минска —{" "}
-            <span className="text-terracotta">прямиком из обжарщика</span> в вашу
+            Свежеобжаренный кофе в Минске —{" "}
+            <span className="text-terracotta">от обжарщиков</span> прямиком в вашу
             чашку
           </h1>
 

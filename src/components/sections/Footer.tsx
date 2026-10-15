@@ -22,7 +22,7 @@ export function Footer() {
           {/* Бренд */}
           <div>
             <p className="font-display text-2xl font-semibold text-espresso">
-              Кварта
+              Обжарка «Кварта»
             </p>
             <p className="mt-2 max-w-xs font-sans text-sm text-taupe">
               Небольшая мастерская обжарки кофе в Минске. {CONTACT.roastDay},{" "}
@@ -66,7 +66,7 @@ export function Footer() {
         {/* Нижняя строка */}
         <div className="mt-10 flex flex-col gap-2 border-t border-hairline pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-sans text-xs text-taupe-light">
-            © {COPYRIGHT_YEAR} Кварта. Обжариваем с любовью в Минске.
+            © {COPYRIGHT_YEAR} Обжарка «Кварта». Обжариваем с любовью в Минске.
           </p>
           <p className="font-sans text-xs text-taupe-light">
             {CONTACT.roastDay} · {CONTACT.deliveryDay}
