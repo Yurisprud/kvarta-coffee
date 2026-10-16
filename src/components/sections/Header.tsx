@@ -21,9 +21,9 @@ export function Header() {
         <Container className="flex h-9 items-center justify-center">
           <p className="text-center font-sans text-[0.7rem] font-medium uppercase tracking-[0.18em] sm:text-xs">
             <span className="hidden sm:inline">Обжариваем по четвергам</span>
-            <span className="sm:hidden">Обжарка — чт, развоз — пт</span>
+            <span className="sm:hidden">Обжарка — чт, доставка — пт</span>
             <span aria-hidden="true" className="px-2 opacity-50">
-              ·
+              
             </span>
             <span className="hidden sm:inline">доставляем по пятницам</span>
           </p>
